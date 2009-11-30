@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 #  Copyright (c) 2009, Benedikt Müller <linopolus@xssn.at>
+#  edited by Jan-Erik Rediger
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -10,14 +11,15 @@
 #  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 require 'net/imap'
-require 'rubygems'
-require 'net/netrc' ## GEM net-netrc ##
 
+OPTIONS = {
+  :server => 'mail.yourserver.de',   # your mail server          String
+  :ssl => { :verify_mode => OpenSSL::SSL::VERIFY_NONE },
+  :authtype => 'PLAIN',
 
-Server =   'mail.server-speed.net'   # your mail server          String
-SSL =      true                      # use SSL/TLS or not:       (true|false)
-AuthType = 'PLAIN'                   # your authentication type: (PLAIN|LOGIN)
-
+  :user => 'user',
+  :password => 'password'
+}
 
 # if you have to use plain auth instead of login…
 class ImapPlainAuthenticator
@@ -32,22 +34,10 @@ class ImapPlainAuthenticator
 end
 Net::IMAP::add_authenticator('PLAIN', ImapPlainAuthenticator)
 
-# connect
-imap = Net::IMAP.new(Server, options={:ssl => SSL})
-# authenticate
-rc = Net::Netrc.locate(Server) or
-  raise ".netrc missing or no entry found"
-User = rc.login
-Pass = rc.password
-imap.authenticate(AuthType, User, Pass)
-#imap.examine('INBOX')
-anzahl = 0
-# count
-imap.list("", "INBOX*").each do |element|
-#  imap.examine(element.name)
-  anzahl = anzahl + imap.status(element.name, ['UNSEEN'])['UNSEEN']
-end
-# print
-puts anzahl
-# and exit
+imap = Net::IMAP.new(OPTIONS[:server], { :ssl => OPTIONS[:ssl] })
+imap.authenticate(OPTIONS[:authtype], OPTIONS[:user], OPTIONS[:password])
+
+puts imap.list("", "INBOX*").inject(0) { |count, elem|
+  count + imap.status(elem.name, ['UNSEEN'])['UNSEEN']
+}
 imap.disconnect
